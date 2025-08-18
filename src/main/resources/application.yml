@@ -17,6 +17,12 @@ spring:
         jdbc:
           lob:
             non_contextual_creation: true
+        envers:
+          autoRegisterListeners: true
+          store_data_at_delete: true
+          audit_table_suffix: _history
+          revision_field_name: revision
+          revision_type_field_name: revision_type
 
 jwt:
   secret: ${JWT_SECRET:7x4hB2vT9qYpXwLcRfUjMnZk6tAeDgHsKbP3yV5N8WmQrJdFt0z1C}
@@ -31,8 +37,9 @@ springdoc:
   api-docs:
     path: /v3/api-docs
 
-    logging:
-      level:
-        org.springframework.security: DEBUG
-        org.springframework.web: DEBUG
-        kz.don.todo_app: TRACE
+logging:
+  level:
+    org.springframework.security: DEBUG
+    org.springframework.web: DEBUG
+    kz.don.todo_app: TRACE
+    org.hibernate: DEBUG
