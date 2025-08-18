@@ -40,4 +40,12 @@ public class RegisterRequest {
             required = true
     )
     private String confirmPassword;
+
+    @NotBlank(message = "Full name cannot be blank")
+    @Schema(
+            description = "Full name of the user",
+            example = "John Doe",
+            required = true
+    )
+    private String fullName;
 }

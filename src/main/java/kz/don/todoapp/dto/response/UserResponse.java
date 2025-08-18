@@ -27,6 +27,9 @@ public class UserResponse {
     )
     private String role;
 
+    @Schema(description = "Full name of the user", example = "John Doe")
+    private String fullName;
+
     @Schema(description = "Account activation status", example = "true")
     private Boolean enabled;
 
