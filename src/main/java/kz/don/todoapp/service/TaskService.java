@@ -1,6 +1,8 @@
 package kz.don.todoapp.service;
 
 import jakarta.persistence.EntityNotFoundException;
+import kz.don.todoapp.audit.AuditActionEnum;
+import kz.don.todoapp.audit.AuditLog;
 import kz.don.todoapp.dto.request.TaskRequest;
 import kz.don.todoapp.dto.response.TaskResponse;
 import kz.don.todoapp.entity.Task;
@@ -24,6 +26,7 @@ import java.util.UUID;
 public class TaskService {
     private final TaskRepository taskRepository;
     private final UserRepository userRepository;
+    private final AuditService auditService;
 
     public List<TaskResponse> getUserTasks(StatusEnum status) {
         User currentUser = getCurrentUser();
@@ -33,6 +36,15 @@ public class TaskService {
                 : taskRepository.findByUserAndStatusOrderByCreatedAtDesc(currentUser, status);
 
         log.info("Retrieved {} tasks for user: {}", tasks.size(), currentUser.getUsername());
+
+        auditService.saveAuditLog(
+                AuditLog.builder()
+                        .action(AuditActionEnum.READ)
+                        .userId(currentUser.getId())
+                        .details("User retrieved tasks successfully")
+                        .build()
+        );
+
         return tasks.stream()
                 .map(this::mapToResponse)
                 .toList();
@@ -47,6 +59,14 @@ public class TaskService {
                 .status(request.getStatus() != null ? request.getStatus() : StatusEnum.TODO)
                 .user(currentUser)
                 .build();
+
+        auditService.saveAuditLog(
+                AuditLog.builder()
+                        .action(AuditActionEnum.CREATE)
+                        .userId(currentUser.getId())
+                        .details("User created a task successfully")
+                        .build()
+        );
 
         task = taskRepository.save(task);
         log.info("Task created: {}", task.getId());
@@ -72,6 +92,14 @@ public class TaskService {
             task.setStatus(request.getStatus());
         }
 
+        auditService.saveAuditLog(
+                AuditLog.builder()
+                        .action(AuditActionEnum.UPDATE)
+                        .userId(getCurrentUser().getId())
+                        .details("User updated a task successfully")
+                        .build()
+        );
+
         task = taskRepository.save(task);
         log.info("Task updated: {}", task.getId());
         return mapToResponse(task);
@@ -83,6 +111,14 @@ public class TaskService {
                 .orElseThrow(() -> new EntityNotFoundException("Task not found with id: " + id));
 
         checkTaskOwnership(task);
+
+        auditService.saveAuditLog(
+                AuditLog.builder()
+                        .action(AuditActionEnum.CREATE)
+                        .userId(getCurrentUser().getId())
+                        .details("User deleted a task successfully")
+                        .build()
+        );
 
         taskRepository.delete(task);
         log.info("Task deleted: {}", id);
