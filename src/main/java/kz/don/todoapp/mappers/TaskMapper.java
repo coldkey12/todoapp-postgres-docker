@@ -4,14 +4,11 @@ import kz.don.todoapp.dto.request.TaskRequest;
 import kz.don.todoapp.dto.response.TaskResponse;
 import kz.don.todoapp.entity.Task;
 import org.mapstruct.Mapper;
-import org.mapstruct.factory.Mappers;
 
 import java.util.List;
 
-@Mapper
+@Mapper(componentModel = "spring")
 public interface TaskMapper {
-    TaskMapper INSTANCE = Mappers.getMapper(TaskMapper.class);
-
     List<TaskResponse> toListTaskResponse(List<Task> tasks);
 
     Task toTask(TaskRequest taskRequest);

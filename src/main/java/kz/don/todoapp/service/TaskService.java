@@ -23,6 +23,7 @@ import java.util.UUID;
 public class TaskService {
     private final TaskRepository taskRepository;
     private final UserService userService;
+    private final TaskMapper taskMapper;
 
     public List<TaskResponse> getUserTasks(StatusEnum status) {
         User currentUser = userService.getCurrentUser();
@@ -33,11 +34,11 @@ public class TaskService {
 
         log.info("Retrieved {} tasks for user: {}", tasks.size(), currentUser.getUsername());
 
-        return TaskMapper.INSTANCE.toListTaskResponse(tasks);
+        return taskMapper.toListTaskResponse(tasks);
     }
 
     public TaskResponse createTask(TaskRequest request) {
-        Task task = TaskMapper.INSTANCE.toTask(request);
+        Task task = taskMapper.toTask(request);
 
         User currentUser = userService.getCurrentUser();
         task.setUser(currentUser);
@@ -45,7 +46,7 @@ public class TaskService {
         task = taskRepository.save(task);
         log.info("Task created: {}", task.getId());
 
-        return TaskMapper.INSTANCE.toTaskResponse(task);
+        return taskMapper.toTaskResponse(task);
     }
 
     public TaskResponse updateTask(UUID id, TaskRequest request) {
@@ -69,7 +70,7 @@ public class TaskService {
 
         task = taskRepository.save(task);
         log.info("Task updated: {}", task.getId());
-        return TaskMapper.INSTANCE.toTaskResponse(task);
+        return taskMapper.toTaskResponse(task);
     }
 
     public void deleteTask(UUID id) {

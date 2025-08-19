@@ -35,7 +35,7 @@ import java.util.UUID;
 public class AdminController {
 
     private final UserRepository userRepository;
-    private final TaskRepository taskRepository;
+    private final UserMapper userMapper;
     private final PasswordEncoder passwordEncoder;
 
     @Operation(summary = "Get all users", description = "Returns a list of all registered users")
@@ -45,7 +45,7 @@ public class AdminController {
     @GetMapping("/users")
     public List<UserResponse> getAllUsers() {
         List<User> users = userRepository.findAll();
-        return UserMapper.INSTANCE.toListUserResponse(users);
+        return userMapper.toListUserResponse(users);
     }
 
     @Transactional

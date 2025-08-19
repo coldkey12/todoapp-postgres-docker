@@ -7,6 +7,7 @@ import kz.don.todoapp.dto.response.AuthResponse;
 import kz.don.todoapp.entity.RefreshToken;
 import kz.don.todoapp.entity.User;
 import kz.don.todoapp.enums.RoleEnum;
+import kz.don.todoapp.exceptions.UsernameAlreadyExistsException;
 import kz.don.todoapp.repository.RefreshTokenRepository;
 import kz.don.todoapp.repository.UserRepository;
 import kz.don.todoapp.security.jwt.JwtService;
@@ -15,7 +16,6 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.security.authentication.AuthenticationManager;
-import org.springframework.security.authentication.AuthenticationServiceException;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
@@ -41,7 +41,9 @@ public class AuthService {
 
     public AuthResponse register(RegisterRequest request) {
         if (userRepository.existsByUsername(request.getUsername())) {
-            throw new AuthenticationServiceException("UsernameAlreadyExistsException");
+            throw new UsernameAlreadyExistsException(
+                    String.format("Username '%s' is already taken", request.getUsername())
+            );
         }
 
         User user = User.builder()

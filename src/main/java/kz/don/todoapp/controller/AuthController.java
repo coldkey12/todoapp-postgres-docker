@@ -29,6 +29,7 @@ public class AuthController {
 
     @Operation(summary = "Register new user")
     @ApiResponse(responseCode = "201", description = "User registered successfully")
+    @ApiResponse(responseCode = "409", description = "Conflict - username already exists")
     @PostMapping("/register")
     public ResponseEntity<AuthResponse> register(
             @io.swagger.v3.oas.annotations.parameters.RequestBody(
@@ -37,7 +38,7 @@ public class AuthController {
                     content = @Content(schema = @Schema(implementation = RegisterRequest.class))
             )
             @Valid @RequestBody RegisterRequest request
-    ) throws Exception {
+    ) {
         return ResponseEntity.status(HttpStatus.CREATED).body(authService.register(request));
     }
 
