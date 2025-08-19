@@ -12,6 +12,8 @@ import kz.don.todoapp.dto.request.TaskRequest;
 import kz.don.todoapp.dto.response.TaskResponse;
 import kz.don.todoapp.enums.StatusEnum;
 import kz.don.todoapp.service.TaskService;
+import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -21,12 +23,10 @@ import java.util.UUID;
 @RestController
 @RequestMapping("/api/tasks")
 @Tag(name = "Tasks", description = "Endpoints for task management")
+@RequiredArgsConstructor
 public class TaskController {
-    private final TaskService taskService;
 
-    public TaskController(TaskService taskService) {
-        this.taskService = taskService;
-    }
+    private final TaskService taskService;
 
     @Operation(summary = "Get user's tasks", security = @SecurityRequirement(name = "bearerAuth"))
     @ApiResponse(responseCode = "200", description = "Tasks retrieved successfully")
@@ -39,7 +39,7 @@ public class TaskController {
     }
 
     @Operation(summary = "Create new task", security = @SecurityRequirement(name = "bearerAuth"))
-    @ApiResponse(responseCode = "200", description = "Task created successfully")
+    @ApiResponse(responseCode = "201", description = "Task created successfully")
     @PostMapping
     public ResponseEntity<TaskResponse> createTask(
             @io.swagger.v3.oas.annotations.parameters.RequestBody(
@@ -49,7 +49,7 @@ public class TaskController {
             )
             @Valid @RequestBody TaskRequest request
     ) {
-        return ResponseEntity.ok(taskService.createTask(request));
+        return ResponseEntity.status(HttpStatus.CREATED).body(taskService.createTask(request));
     }
 
     @Operation(summary = "Update task", security = @SecurityRequirement(name = "bearerAuth"))

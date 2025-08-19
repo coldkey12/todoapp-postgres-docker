@@ -1,4 +1,5 @@
 package kz.don.todoapp.service;
+
 import kz.don.todoapp.dto.request.AuthRequest;
 import kz.don.todoapp.dto.request.RefreshTokenRequest;
 import kz.don.todoapp.dto.request.RegisterRequest;
@@ -14,6 +15,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.security.authentication.AuthenticationManager;
+import org.springframework.security.authentication.AuthenticationServiceException;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
@@ -36,11 +38,10 @@ public class AuthService {
     private final JwtService jwtService;
     private final AuthenticationManager authenticationManager;
     private final RefreshTokenRepository refreshTokenRepository;
-//    private final AuditService auditService;
 
-    public AuthResponse register(RegisterRequest request) throws Exception {
+    public AuthResponse register(RegisterRequest request) {
         if (userRepository.existsByUsername(request.getUsername())) {
-            throw new Exception("Username already taken");
+            throw new AuthenticationServiceException("UsernameAlreadyExistsException");
         }
 
         User user = User.builder()
@@ -53,14 +54,6 @@ public class AuthService {
 
         user = userRepository.save(user);
         log.info("User registered: {}", user.getUsername());
-
-//        auditService.saveAuditLog(
-//                AuditLog.builder()
-//                        .action(AuditActionEnum.CREATE)
-//                        .userId(user.getId())
-//                        .details("User registered successfully")
-//                        .build()
-//        );
 
         return generateAuthResponse(user);
     }
@@ -79,14 +72,6 @@ public class AuthService {
             SecurityContextHolder.getContext().setAuthentication(authentication);
             User user = (User) authentication.getPrincipal();
             log.info("User logged in: {}", user.getUsername());
-
-//            auditService.saveAuditLog(
-//                    AuditLog.builder()
-//                            .action(AuditActionEnum.READ)
-//                            .userId(user.getId())
-//                            .details("User logged in successfully")
-//                            .build()
-//            );
 
             return generateAuthResponse(user);
         } catch (BadCredentialsException e) {
@@ -139,14 +124,6 @@ public class AuthService {
             refreshTokenRepository.save(refreshToken);
 
             log.info("Refreshed tokens for user: {}", user.getUsername());
-
-//            auditService.saveAuditLog(
-//                    AuditLog.builder()
-//                            .action(AuditActionEnum.UPDATE)
-//                            .userId(user.getId())
-//                            .details("User refreshed a JWT successfully")
-//                            .build()
-//            );
 
             return AuthResponse.builder()
                     .accessToken(newAccessToken)
@@ -212,16 +189,6 @@ public class AuthService {
                 log.warn("Refresh token not found during logout");
                 throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Invalid refresh token");
             }
-
-            User user = refreshToken.get().getUser();
-
-//            auditService.saveAuditLog(
-//                    AuditLog.builder()
-//                            .action(AuditActionEnum.CREATE)
-//                            .userId(user.getId())
-//                            .details("User registered successfully")
-//                            .build()
-//            );
 
             SecurityContextHolder.clearContext();
         } catch (ResponseStatusException e) {

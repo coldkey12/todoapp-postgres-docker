@@ -27,7 +27,7 @@ public class LogoutService implements LogoutHandler {
 
         final String jwt = authHeader.substring(7);
         refreshTokenRepository.findByToken(jwt);
-        if (refreshTokenRepository.findByToken(jwt) != null) {
+        if (refreshTokenRepository.findByToken(jwt).isPresent()) {
             refreshTokenRepository.deleteByToken(jwt);
         }
     }

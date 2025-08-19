@@ -11,7 +11,8 @@ import kz.don.todoapp.dto.request.RefreshTokenRequest;
 import kz.don.todoapp.dto.request.RegisterRequest;
 import kz.don.todoapp.dto.response.AuthResponse;
 import kz.don.todoapp.service.AuthService;
-import lombok.extern.slf4j.Slf4j;
+import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -21,15 +22,13 @@ import org.springframework.web.bind.annotation.RestController;
 @RestController
 @RequestMapping("/api/auth")
 @Tag(name = "Authentication", description = "Endpoints for user authentication")
+@RequiredArgsConstructor
 public class AuthController {
+
     private final AuthService authService;
 
-    public AuthController(AuthService authService) {
-        this.authService = authService;
-    }
-
     @Operation(summary = "Register new user")
-    @ApiResponse(responseCode = "200", description = "User registered successfully")
+    @ApiResponse(responseCode = "201", description = "User registered successfully")
     @PostMapping("/register")
     public ResponseEntity<AuthResponse> register(
             @io.swagger.v3.oas.annotations.parameters.RequestBody(
@@ -39,11 +38,12 @@ public class AuthController {
             )
             @Valid @RequestBody RegisterRequest request
     ) throws Exception {
-        return ResponseEntity.ok(authService.register(request));
+        return ResponseEntity.status(HttpStatus.CREATED).body(authService.register(request));
     }
 
     @Operation(summary = "Authenticate user")
     @ApiResponse(responseCode = "200", description = "User authenticated successfully")
+    @ApiResponse(responseCode = "401", description = "Unauthorized - invalid credentials")
     @PostMapping("/login")
     public ResponseEntity<AuthResponse> login(
             @io.swagger.v3.oas.annotations.parameters.RequestBody(
@@ -53,7 +53,7 @@ public class AuthController {
             )
             @Valid @RequestBody AuthRequest request
     ) {
-        return ResponseEntity.ok(authService.login(request));
+        return ResponseEntity.status(HttpStatus.OK).body(authService.login(request));
     }
 
     @Operation(summary = "Refresh access token")
@@ -66,8 +66,8 @@ public class AuthController {
                     content = @Content(schema = @Schema(implementation = RefreshTokenRequest.class))
             )
             @Valid @RequestBody RefreshTokenRequest request
-    ) throws Exception {
-        return ResponseEntity.ok(authService.refreshToken(request));
+    ) {
+        return ResponseEntity.status(HttpStatus.OK).body(authService.refreshToken(request));
     }
 
     @Operation(summary = "Logout user")
