@@ -3,12 +3,10 @@ server:
 
 spring:
   datasource:
-    url: jdbc:postgresql://localhost:5432/postgres
+    url: jdbc:postgresql://localhost:5432/postgres?currentSchema=todo-app
     username: postgres
     password: 12070107Don
   jpa:
-    hibernate:
-      ddl-auto: update
     show-sql: false
     database-platform: org.hibernate.dialect.PostgreSQLDialect
     properties:
@@ -23,6 +21,11 @@ spring:
           audit_table_suffix: _history
           revision_field_name: revision
           revision_type_field_name: revision_type
+    flyway:
+      url: jdbc:postgresql://localhost:5432/postgres?currentSchema=todo-app
+      user: postgres
+      password: 12070107Don
+      locations: classpath:db/migration
 
 jwt:
   secret: ${JWT_SECRET:7x4hB2vT9qYpXwLcRfUjMnZk6tAeDgHsKbP3yV5N8WmQrJdFt0z1C}

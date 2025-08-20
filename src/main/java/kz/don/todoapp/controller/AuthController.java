@@ -21,66 +21,34 @@ import org.springframework.web.bind.annotation.RestController;
 
 @RestController
 @RequestMapping("/api/auth")
-@Tag(name = "Authentication", description = "Endpoints for user authentication")
 @RequiredArgsConstructor
 public class AuthController {
 
     private final AuthService authService;
 
-    @Operation(summary = "Register new user")
-    @ApiResponse(responseCode = "201", description = "User registered successfully")
-    @ApiResponse(responseCode = "409", description = "Conflict - username already exists")
     @PostMapping("/register")
     public ResponseEntity<AuthResponse> register(
-            @io.swagger.v3.oas.annotations.parameters.RequestBody(
-                    description = "User registration data",
-                    required = true,
-                    content = @Content(schema = @Schema(implementation = RegisterRequest.class))
-            )
             @Valid @RequestBody RegisterRequest request
     ) {
         return ResponseEntity.status(HttpStatus.CREATED).body(authService.register(request));
     }
 
-    @Operation(summary = "Authenticate user")
-    @ApiResponse(responseCode = "200", description = "User authenticated successfully")
-    @ApiResponse(responseCode = "401", description = "Unauthorized - invalid credentials")
     @PostMapping("/login")
     public ResponseEntity<AuthResponse> login(
-            @io.swagger.v3.oas.annotations.parameters.RequestBody(
-                    description = "User credentials",
-                    required = true,
-                    content = @Content(schema = @Schema(implementation = AuthRequest.class))
-            )
             @Valid @RequestBody AuthRequest request
     ) {
         return ResponseEntity.status(HttpStatus.OK).body(authService.login(request));
     }
 
-    @Operation(summary = "Refresh access token")
-    @ApiResponse(responseCode = "200", description = "Token refreshed successfully")
     @PostMapping("/refresh")
     public ResponseEntity<AuthResponse> refreshToken(
-            @io.swagger.v3.oas.annotations.parameters.RequestBody(
-                    description = "Refresh token data",
-                    required = true,
-                    content = @Content(schema = @Schema(implementation = RefreshTokenRequest.class))
-            )
             @Valid @RequestBody RefreshTokenRequest request
     ) {
         return ResponseEntity.status(HttpStatus.OK).body(authService.refreshToken(request));
     }
 
-    @Operation(summary = "Logout user")
-    @ApiResponse(responseCode = "200", description = "User logged out successfully")
-    @ApiResponse(responseCode = "401", description = "Invalid or missing refresh token")
     @PostMapping("/logout")
     public ResponseEntity<Void> logout(
-            @io.swagger.v3.oas.annotations.parameters.RequestBody(
-                    description = "Refresh token data",
-                    required = true,
-                    content = @Content(schema = @Schema(implementation = RefreshTokenRequest.class))
-            )
             @Valid @RequestBody RefreshTokenRequest request
     ) {
         authService.logout(request);

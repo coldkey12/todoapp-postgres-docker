@@ -43,6 +43,9 @@ public class User implements UserDetails {
     @Column(nullable = false)
     private String password;
 
+    @Column(unique = true)
+    private String someThirdPartyPaymentServiceWalletId;
+
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
     private RoleEnum role = RoleEnum.MANAGER;
