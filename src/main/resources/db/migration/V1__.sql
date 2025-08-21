@@ -10,9 +10,11 @@ CREATE TABLE audit_envers_info
 
 CREATE TABLE products
 (
-    id          UUID         NOT NULL,
+    id          UUID             NOT NULL,
     quantity    BIGINT,
-    title       VARCHAR(100) NOT NULL,
+    price       DOUBLE PRECISION NOT NULL,
+    available   BOOLEAN          NOT NULL,
+    title       VARCHAR(100)     NOT NULL,
     description TEXT,
     CONSTRAINT pk_products PRIMARY KEY (id)
 );
@@ -54,45 +56,55 @@ CREATE TABLE tasks_aud
 
 CREATE TABLE user_transcation
 (
-    id         UUID NOT NULL,
-    user_id    UUID NOT NULL,
-    product_id UUID NOT NULL,
+    id                 UUID         NOT NULL,
+    user_id            UUID,
+    transaction_status VARCHAR(255) NOT NULL,
+    quantity           INTEGER      NOT NULL,
+    product_id         UUID         NOT NULL,
     CONSTRAINT pk_user_transcation PRIMARY KEY (id)
 );
 
 CREATE TABLE users
 (
-    id         UUID                        NOT NULL,
-    username   VARCHAR(255)                NOT NULL,
-    password   VARCHAR(255)                NOT NULL,
-    role       VARCHAR(255)                NOT NULL,
-    full_name  VARCHAR(255),
-    enabled    BOOLEAN                     NOT NULL,
-    created_at TIMESTAMP WITHOUT TIME ZONE NOT NULL,
-    updated_at TIMESTAMP WITHOUT TIME ZONE NOT NULL,
+    id                                         UUID                        NOT NULL,
+    username                                   VARCHAR(255)                NOT NULL,
+    password                                   VARCHAR(255)                NOT NULL,
+    some_third_party_payment_service_wallet_id VARCHAR(255),
+    role                                       VARCHAR(255)                NOT NULL,
+    full_name                                  VARCHAR(255),
+    enabled                                    BOOLEAN                     NOT NULL,
+    created_at                                 TIMESTAMP WITHOUT TIME ZONE NOT NULL,
+    updated_at                                 TIMESTAMP WITHOUT TIME ZONE NOT NULL,
     CONSTRAINT pk_users PRIMARY KEY (id)
 );
 
 CREATE TABLE users_aud
 (
-    rev        INTEGER NOT NULL,
-    revtype    SMALLINT,
-    id         UUID    NOT NULL,
-    username   VARCHAR(255),
-    password   VARCHAR(255),
-    role       VARCHAR(255),
-    full_name  VARCHAR(255),
-    enabled    BOOLEAN,
-    created_at TIMESTAMP WITHOUT TIME ZONE,
-    updated_at TIMESTAMP WITHOUT TIME ZONE,
+    rev                                        INTEGER NOT NULL,
+    revtype                                    SMALLINT,
+    id                                         UUID    NOT NULL,
+    username                                   VARCHAR(255),
+    password                                   VARCHAR(255),
+    some_third_party_payment_service_wallet_id VARCHAR(255),
+    role                                       VARCHAR(255),
+    full_name                                  VARCHAR(255),
+    enabled                                    BOOLEAN,
+    created_at                                 TIMESTAMP WITHOUT TIME ZONE,
+    updated_at                                 TIMESTAMP WITHOUT TIME ZONE,
     CONSTRAINT pk_users_aud PRIMARY KEY (rev, id)
 );
+
+ALTER TABLE products
+    ADD CONSTRAINT uc_products_title UNIQUE (title);
 
 ALTER TABLE refresh_tokens
     ADD CONSTRAINT uc_refresh_tokens_token UNIQUE (token);
 
 ALTER TABLE refresh_tokens
     ADD CONSTRAINT uc_refresh_tokens_user UNIQUE (user_id);
+
+ALTER TABLE users
+    ADD CONSTRAINT uc_users_somethirdpartypaymentservicewalletid UNIQUE (some_third_party_payment_service_wallet_id);
 
 ALTER TABLE users
     ADD CONSTRAINT uc_users_username UNIQUE (username);

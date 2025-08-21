@@ -1,6 +1,5 @@
 package kz.don.todoapp.controller;
 
-import io.swagger.v3.oas.annotations.Parameter;
 import jakarta.persistence.EntityNotFoundException;
 import jakarta.transaction.Transactional;
 import kz.don.todoapp.dto.EnabledRequest;
@@ -46,7 +45,7 @@ public class AdminController {
 
     @Transactional
     @PutMapping("/users/{userId}/status")
-    public ResponseEntity<Void> updateUserStatus(
+    public ResponseEntity<User> updateUserStatus(
             @PathVariable UUID userId,
             @RequestBody EnabledRequest enabled
     ) {
@@ -56,7 +55,7 @@ public class AdminController {
         log.info("Updating user status: {} to {}", userId, enabled);
         user.setEnabled(enabled.isEnabled());
         userRepository.save(user);
-        return ResponseEntity.noContent().build();
+        return ResponseEntity.ok(user);
     }
 
     @PutMapping("/users/{userId}/update")
@@ -98,14 +97,15 @@ public class AdminController {
     }
 
     @DeleteMapping("/delete-product/{productId}")
-    private ResponseEntity<String> deleteProduct(@PathVariable UUID productId) {
+    public ResponseEntity<String> deleteProduct(@PathVariable String productId) {
         log.info("Deleting product with ID: {}", productId);
-        productService.deleteProduct(productId);
+
+        productService.deleteProductById(UUID.fromString(productId));
         return ResponseEntity.ok("Product deleted successfully");
     }
 
     @PutMapping("/ship-product/{transactionId}")
-    private ResponseEntity<String> shipProduct(@PathVariable UUID transactionId) {
+    public ResponseEntity<String> shipProduct(@PathVariable UUID transactionId) {
         log.info("Shipping product with transaction ID: {}", transactionId);
         productService.shipProduct(transactionId);
         return ResponseEntity.ok("Product shipped successfully");

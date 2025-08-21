@@ -11,13 +11,14 @@ import kz.don.todoapp.repository.ProductRepository;
 import kz.don.todoapp.repository.UserRepository;
 import kz.don.todoapp.repository.UserTransactionRepository;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class ProductService {
@@ -37,9 +38,17 @@ public class ProductService {
     }
 
     public void createProduct(Product product) {
+        Product productCheck = productRepository.findByTitle(product.getTitle());
 
-        if (productRepository.findByTitle(product.getTitle()) != null) {
-            throw new IllegalArgumentException("Product with title '" + product.getTitle() + "' already exists.");
+        if (productCheck != null) {
+            productCheck.setAvailable(true);
+            productCheck.setQuantity(product.getQuantity());
+            productCheck.setDescription(product.getDescription());
+            productCheck.setPrice(product.getPrice());
+            productCheck.setTitle(product.getTitle());
+            productRepository.save(productCheck);
+            log.info("Product with title '" + product.getTitle() + "' already exists. Renewing old one and rewriting its data.");
+            return;
         }
         product.setAvailable(true);
 
@@ -71,7 +80,7 @@ public class ProductService {
         }
 
         UserTransaction userTransaction = userTransactionMapper.toUserTransaction(request);
-        userTransaction.setUserId(user);
+        userTransaction.setUser(user);
         userTransaction.setTransactionStatus(UserTranscationStatus.ORDER);
 
         userTransactionRepository.save(userTransaction);
@@ -89,14 +98,14 @@ public class ProductService {
         if (userTransaction.get().getTransactionStatus() == UserTranscationStatus.PAID) {
             userTransaction.get().setTransactionStatus(UserTranscationStatus.CANCELLED);
 
-            Optional<Product> product = productRepository.findById(userTransaction.get().getProductId().getId());
+            Optional<Product> product = productRepository.findById(userTransaction.get().getProduct().getId());
 
             product.get().setQuantity(product.get().getQuantity() + userTransaction.get().getQuantity());
             productRepository.save(product.get());
             return;
         }
 
-        Optional<Product> product = productRepository.findById(userTransaction.get().getProductId().getId());
+        Optional<Product> product = productRepository.findById(userTransaction.get().getProduct().getId());
 
         product.get().setQuantity(product.get().getQuantity() + userTransaction.get().getQuantity());
         productRepository.save(product.get());
@@ -110,6 +119,12 @@ public class ProductService {
     }
 
     public void purchaseOrder(UUID transactionId) {
+        User user = userService.getCurrentUser();
+        if (user.getSomeThirdPartyPaymentServiceWalletId() == null) {
+            throw new IllegalArgumentException("User has not provided payment information.");
+        }
+        // Tipo storonniy API dlya payment
+        log.info("User ID: " + user.getId() + ", Transaction ID: " + transactionId + ", Wallet ID: " + user.getSomeThirdPartyPaymentServiceWalletId());
         Optional<UserTransaction> userTransaction = userTransactionRepository.findById(transactionId);
         userTransaction.get().setTransactionStatus(UserTranscationStatus.PAID);
         userTransactionRepository.save(userTransaction.get());
@@ -124,11 +139,13 @@ public class ProductService {
         productRepository.save(product);
     }
 
-    @Transactional
-    public void deleteProduct(UUID productId) {
+    public void deleteProductById(UUID productId) {
+        System.out.println("Inside of the method");
         Optional<Product> product = productRepository.findById(productId);
+        List<UserTransaction> userTransactions = userTransactionRepository.existsByProductIdAndTransactionStatus(productId, UserTranscationStatus.ORDER);
+        System.out.println(userTransactions.size());
 
-        if (userTransactionRepository.existsByProductIdAndTransactionStatus(productId, String.valueOf(UserTranscationStatus.PAID))) {
+        if (!userTransactions.isEmpty()) {
             product.get().setAvailable(false);
             productRepository.save(product.get());
             return;
@@ -145,6 +162,6 @@ public class ProductService {
         }
 
         userTransaction.get().setTransactionStatus(UserTranscationStatus.SHIPPED);
-        userTransactionRepository.save(userTransaction.get());
+        userTransactionRepository.delete(userTransaction.get());
     }
 }

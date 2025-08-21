@@ -2,24 +2,27 @@ package kz.don.todoapp.controller;
 
 import kz.don.todoapp.dto.request.UserTransactionRequest;
 import kz.don.todoapp.entity.Product;
-import kz.don.todoapp.entity.UserTransaction;
+import kz.don.todoapp.enums.UserTranscationStatus;
 import kz.don.todoapp.service.ProductService;
-import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
-import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 import java.util.UUID;
 
-@Controller
+@RestController
 @RequestMapping("/api/marketplace")
-@RequiredArgsConstructor
 @PreAuthorize("hasRole('MANAGER') or hasRole('ADMIN')")
+@Slf4j
 public class MarketplaceController {
 
     private final ProductService productService;
+
+    public MarketplaceController(ProductService productService) {
+        this.productService = productService;
+    }
 
     @GetMapping("/products")
     public ResponseEntity<List<Product>> getAllProducts() {
@@ -32,8 +35,8 @@ public class MarketplaceController {
     }
 
     @PostMapping("/place-order")
-    public UserTransaction placeOrder(@RequestBody UserTransactionRequest request) {
-        return productService.placeOrder(request);
+    public ResponseEntity<UserTranscationStatus> placeOrder(@RequestBody UserTransactionRequest request) {
+        return ResponseEntity.ok(productService.placeOrder(request).getTransactionStatus());
     }
 
     @DeleteMapping("/cancel-order/{transactionId}")
@@ -49,7 +52,7 @@ public class MarketplaceController {
     }
 
     @PutMapping("/add-payment-info")
-    public ResponseEntity<String> addPaymentInfo(@RequestBody String walletId) {
+    public ResponseEntity<String> addPaymentInfo(@RequestParam String walletId) {
         productService.addPaymentInfo(walletId);
         return ResponseEntity.ok("Payment information added successfully");
     }

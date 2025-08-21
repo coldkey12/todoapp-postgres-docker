@@ -8,6 +8,6 @@ public class UserRevisionListener implements RevisionListener {
     @Override
     public void newRevision(Object revisionEntity) {
         AuditEnversInfo auditEnversInfo = (AuditEnversInfo) revisionEntity;
-        auditEnversInfo.setUsername("unknown");
+        auditEnversInfo.setUsername(auditEnversInfo.getUsername());
     }
 }

@@ -24,9 +24,9 @@ public class UserTransaction {
     @Column(name = "id", updatable = false, nullable = false)
     private UUID id;
 
-    @ManyToOne(fetch = FetchType.LAZY)
+    @ManyToOne(fetch = FetchType.EAGER)
     @JoinColumn(name = "user_id")
-    private User userId;
+    private User user;
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
@@ -35,7 +35,7 @@ public class UserTransaction {
     @Column(nullable = false)
     private Integer quantity;
 
-    @ManyToOne(fetch = FetchType.LAZY)
+    @ManyToOne(fetch = FetchType.EAGER)
     @JoinColumn(name = "product_id", nullable = false)
-    private Product productId;
+    private Product product;
 }

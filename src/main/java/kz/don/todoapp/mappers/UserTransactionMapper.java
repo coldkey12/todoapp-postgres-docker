@@ -8,6 +8,6 @@ import org.mapstruct.Mapping;
 @Mapper(componentModel = "spring", uses = UserTransactionMapperUtil.class)
 public interface UserTransactionMapper {
 
-    @Mapping(target = "productId", source = "productId", qualifiedByName = "mapUuidToProduct")
+    @Mapping(target = "product", source = "productId", qualifiedByName = "mapUuidToProduct")
     UserTransaction toUserTransaction(UserTransactionRequest request);
 }
