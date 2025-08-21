@@ -51,7 +51,7 @@ public class AuthService {
                 .password(passwordEncoder.encode(request.getPassword()))
                 .enabled(true)
                 .fullName(request.getFullName())
-                .role(RoleEnum.MANAGER)
+                .role(RoleEnum.USER)
                 .build();
 
         user = userRepository.save(user);

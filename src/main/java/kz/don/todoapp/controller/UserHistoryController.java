@@ -2,6 +2,7 @@ package kz.don.todoapp.controller;
 
 import kz.don.todoapp.entity.User;
 import kz.don.todoapp.repository.UserRevisionRepository;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -11,6 +12,7 @@ import java.util.List;
 import java.util.UUID;
 
 @RestController
+@PreAuthorize("hasRole('ADMIN')")
 @RequestMapping("/api/user-history")
 public class UserHistoryController {
 

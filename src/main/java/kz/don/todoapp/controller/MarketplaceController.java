@@ -14,7 +14,7 @@ import java.util.UUID;
 
 @RestController
 @RequestMapping("/api/marketplace")
-@PreAuthorize("hasRole('MANAGER') or hasRole('ADMIN')")
+@PreAuthorize("hasRole('USER')")
 @Slf4j
 public class MarketplaceController {
 
@@ -29,9 +29,28 @@ public class MarketplaceController {
         return ResponseEntity.ok(productService.getAllProducts());
     }
 
+    @GetMapping("/products/filters")
+    public ResponseEntity<List<Product>> getAllProducts(
+            @RequestParam String sortBy, // price / quantity
+            @RequestParam String sortDirection, // asc / desc
+            @RequestParam int n) {
+        if (n <= 0) {
+            n = 5;
+        }
+        return ResponseEntity.ok(productService.getAllProductsFiltered(sortBy, sortDirection, n));
+    }
+
     @GetMapping("/products/{keyword}")
-    public ResponseEntity<List<Product>> searchProducts(@PathVariable String keyword) {
-        return ResponseEntity.ok(productService.searchProducts(keyword));
+    public ResponseEntity<List<Product>> searchProducts(
+            @PathVariable String keyword, // title / description
+            @RequestParam String sortBy, // price / quantity
+            @RequestParam String sortDirection, // asc / desc
+            @RequestParam int n
+    ) {
+        if (n <= 0) {
+            n = 5;
+        }
+        return ResponseEntity.ok(productService.searchProducts(keyword, sortBy, sortDirection, n));
     }
 
     @PostMapping("/place-order")
@@ -56,5 +75,4 @@ public class MarketplaceController {
         productService.addPaymentInfo(walletId);
         return ResponseEntity.ok("Payment information added successfully");
     }
-
 }

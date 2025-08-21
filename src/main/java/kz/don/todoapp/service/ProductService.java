@@ -12,6 +12,8 @@ import kz.don.todoapp.repository.UserRepository;
 import kz.don.todoapp.repository.UserTransactionRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
@@ -33,8 +35,16 @@ public class ProductService {
         return productRepository.findAll();
     }
 
-    public List<Product> searchProducts(String keyword) {
-        return productRepository.findByTitleContainingIgnoreCase(keyword);
+    public List<Product> getAllProductsFiltered(String sortBy, String sortDirection, int n) {
+        PageRequest pageRequest = PageRequest.of(0, n, Sort.by(Sort.Direction.fromString(sortDirection), sortBy));
+        return productRepository.findAll(pageRequest).getContent();
+    }
+
+    public List<Product> searchProducts(String keyword, String sortBy, String sortDirection, int n) {
+        Sort.Direction direction = Sort.Direction.fromString(sortDirection);
+        Sort sort = Sort.by(direction, sortBy);
+        PageRequest pageRequest = PageRequest.of(0, n, sort);
+        return productRepository.findByTitleContainingIgnoreCaseOrDescriptionContainingIgnoreCase(keyword, keyword, pageRequest);
     }
 
     public void createProduct(Product product) {
@@ -60,7 +70,7 @@ public class ProductService {
 
         Optional<Product> product = productRepository.findById(UUID.fromString(request.getProductId()));
 
-        if(!product.get().isAvailable()) {
+        if (!product.get().isAvailable()) {
             throw new IllegalArgumentException("Product with ID " + request.getProductId() + " is not available.");
         }
 
@@ -131,7 +141,7 @@ public class ProductService {
     }
 
     public void updateProduct(UUID productId, Product product) {
-        if(product.getQuantity() < 0) {
+        if (product.getQuantity() < 0) {
             throw new IllegalArgumentException("Product quantity cannot be negative.");
         }
         product.setAvailable(true);
