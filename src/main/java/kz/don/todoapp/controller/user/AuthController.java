@@ -1,4 +1,4 @@
-package kz.don.todoapp.controller;
+package kz.don.todoapp.controller.user;
 
 import jakarta.validation.Valid;
 import kz.don.todoapp.dto.request.AuthRequest;

@@ -1,4 +1,4 @@
-package kz.don.todoapp.controller;
+package kz.don.todoapp.controller.user;
 
 import kz.don.todoapp.dto.request.UserTransactionRequest;
 import kz.don.todoapp.entity.Product;

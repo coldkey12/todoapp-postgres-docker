@@ -1,4 +1,4 @@
-package kz.don.todoapp.controller;
+package kz.don.todoapp.controller.admin;
 
 import jakarta.persistence.EntityNotFoundException;
 import jakarta.transaction.Transactional;

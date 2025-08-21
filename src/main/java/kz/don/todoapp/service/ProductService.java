@@ -57,7 +57,7 @@ public class ProductService {
             productCheck.setPrice(product.getPrice());
             productCheck.setTitle(product.getTitle());
             productRepository.save(productCheck);
-            log.info("Product with title '" + product.getTitle() + "' already exists. Renewing old one and rewriting its data.");
+            log.info("Product with title {} already exists. Renewing old one and rewriting its data.", product.getTitle());
             return;
         }
         product.setAvailable(true);
@@ -68,24 +68,22 @@ public class ProductService {
     public UserTransaction placeOrder(UserTransactionRequest request) {
         User user = userService.getCurrentUser();
 
-        Optional<Product> product = productRepository.findById(UUID.fromString(request.getProductId()));
+        Product product = productRepository.findById(UUID.fromString(request.getProductId())).orElseThrow(() -> new IllegalArgumentException("Product with that ID doesn't exist."));
 
-        if (!product.get().isAvailable()) {
-            throw new IllegalArgumentException("Product with ID " + request.getProductId() + " is not available.");
+        if (!product.isAvailable()) {
+            throw new IllegalArgumentException("Product with that ID is not available.");
         }
-
-        System.out.println(user.getId() + " and " + request.getProductId());
         UserTransaction userTransactionOld = userTransactionRepository.findByUserIdAndProductId(user.getId(), UUID.fromString(request.getProductId()));
 
-        if (product.get().getQuantity() < request.getQuantity()) {
-            throw new ProductOutOfStock(product.get().getTitle());
+        if (product.getQuantity() < request.getQuantity()) {
+            throw new ProductOutOfStock(product.getTitle());
         }
         if (userTransactionOld != null) {
             userTransactionOld.setQuantity(userTransactionOld.getQuantity() + request.getQuantity());
             userTransactionRepository.save(userTransactionOld);
 
-            product.get().setQuantity(product.get().getQuantity() - request.getQuantity());
-            productRepository.save(product.get());
+            product.setQuantity(product.getQuantity() - request.getQuantity());
+            productRepository.save(product);
             return userTransactionOld;
         }
 
@@ -95,31 +93,31 @@ public class ProductService {
 
         userTransactionRepository.save(userTransaction);
 
-        product.get().setQuantity(product.get().getQuantity() - request.getQuantity());
-        productRepository.save(product.get());
+        product.setQuantity(product.getQuantity() - request.getQuantity());
+        productRepository.save(product);
 
         return userTransaction;
     }
 
     public void cancelOrder(UUID transactionId) {
-        Optional<UserTransaction> userTransaction = userTransactionRepository.findById(transactionId);
+        UserTransaction userTransaction = userTransactionRepository.findById(transactionId).orElseThrow(() -> new IllegalArgumentException("User transaction with that ID doesn't exist."));
 
         // if user paid -> update status instead of delete row
-        if (userTransaction.get().getTransactionStatus() == UserTranscationStatus.PAID) {
-            userTransaction.get().setTransactionStatus(UserTranscationStatus.CANCELLED);
+        if (userTransaction.getTransactionStatus().equals(UserTranscationStatus.PAID)) {
+            userTransaction.setTransactionStatus(UserTranscationStatus.CANCELLED);
 
-            Optional<Product> product = productRepository.findById(userTransaction.get().getProduct().getId());
+            Product product = productRepository.findById(userTransaction.getProduct().getId()).orElseThrow(() -> new IllegalArgumentException("Product with that ID doesn't exist."));
 
-            product.get().setQuantity(product.get().getQuantity() + userTransaction.get().getQuantity());
-            productRepository.save(product.get());
+            product.setQuantity(product.getQuantity() + userTransaction.getQuantity());
+            productRepository.save(product);
             return;
         }
 
-        Optional<Product> product = productRepository.findById(userTransaction.get().getProduct().getId());
+        Product product = productRepository.findById(userTransaction.getProduct().getId()).orElseThrow(() -> new IllegalArgumentException("Product with that ID doesn't exist."));
 
-        product.get().setQuantity(product.get().getQuantity() + userTransaction.get().getQuantity());
-        productRepository.save(product.get());
-        userTransactionRepository.deleteById(userTransaction.get().getId());
+        product.setQuantity(product.getQuantity() + userTransaction.getQuantity());
+        productRepository.save(product);
+        userTransactionRepository.deleteById(userTransaction.getId());
     }
 
     public void addPaymentInfo(String walletId) {
@@ -133,9 +131,11 @@ public class ProductService {
         if (user.getSomeThirdPartyPaymentServiceWalletId() == null) {
             throw new IllegalArgumentException("User has not provided payment information.");
         }
-        // Tipo storonniy API dlya payment
-        log.info("User ID: " + user.getId() + ", Transaction ID: " + transactionId + ", Wallet ID: " + user.getSomeThirdPartyPaymentServiceWalletId());
+        log.info("Processing payment for transaction ID: {} using wallet ID: {}", transactionId, user.getSomeThirdPartyPaymentServiceWalletId());
         Optional<UserTransaction> userTransaction = userTransactionRepository.findById(transactionId);
+        if (userTransaction.isEmpty()) {
+            throw new IllegalArgumentException("Transaction with that ID doesn't exist");
+        }
         userTransaction.get().setTransactionStatus(UserTranscationStatus.PAID);
         userTransactionRepository.save(userTransaction.get());
     }
@@ -150,15 +150,20 @@ public class ProductService {
     }
 
     public void deleteProductById(UUID productId) {
-        System.out.println("Inside of the method");
         Optional<Product> product = productRepository.findById(productId);
         List<UserTransaction> userTransactions = userTransactionRepository.existsByProductIdAndTransactionStatus(productId, UserTranscationStatus.ORDER);
         System.out.println(userTransactions.size());
 
         if (!userTransactions.isEmpty()) {
+            if (product.isEmpty()) {
+                throw new IllegalArgumentException("Product with that ID doesn't exist");
+            }
             product.get().setAvailable(false);
             productRepository.save(product.get());
             return;
+        }
+        if (product.isEmpty()) {
+            throw new IllegalArgumentException("Product with that ID doesn't exist");
         }
 
         userTransactionRepository.deleteById(product.get().getId());
@@ -168,7 +173,7 @@ public class ProductService {
     public void shipProduct(UUID transactionId) {
         Optional<UserTransaction> userTransaction = userTransactionRepository.findById(transactionId);
         if (userTransaction.isEmpty()) {
-            throw new IllegalArgumentException("Transaction with ID " + transactionId + " does not exist.");
+            throw new IllegalArgumentException("Transaction with that ID doesn't exist");
         }
 
         userTransaction.get().setTransactionStatus(UserTranscationStatus.SHIPPED);

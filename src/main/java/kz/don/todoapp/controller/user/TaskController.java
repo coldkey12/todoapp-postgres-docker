@@ -1,4 +1,4 @@
-package kz.don.todoapp.controller;
+package kz.don.todoapp.controller.user;
 
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
