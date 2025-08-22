@@ -12,4 +12,6 @@ public interface WalletRepository extends JpaRepository<Wallet, UUID> {
 
     @Query("SELECT w FROM Wallet w WHERE w.user.id = :id")
     Wallet getWalletInfo(UUID id);
+
+    boolean existsByUserId(UUID id);
 }

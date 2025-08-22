@@ -58,10 +58,4 @@ public class MarketplaceController {
         productService.purchaseOrder(transactionId);
         return ResponseEntity.ok("Order purchased successfully");
     }
-
-    @PutMapping("/add-payment-info")
-    public ResponseEntity<String> addPaymentInfo(@RequestParam String walletId) {
-        productService.addPaymentInfo(walletId);
-        return ResponseEntity.ok("Payment information added successfully");
-    }
 }

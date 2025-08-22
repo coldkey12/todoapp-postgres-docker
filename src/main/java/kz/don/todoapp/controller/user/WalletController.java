@@ -6,9 +6,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
 @RestController
 @RequestMapping("/api/wallet")
@@ -22,6 +20,11 @@ public class WalletController {
     @GetMapping
     public ResponseEntity<WalletResponse> getWalletInfo() {
         return ResponseEntity.ok(walletService.getWalletInfo());
+    }
+
+    @PostMapping
+    public ResponseEntity<WalletResponse> createWallet() {
+        return ResponseEntity.ok(walletService.createWallet());
     }
 
 }

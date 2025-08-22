@@ -30,6 +30,7 @@ import java.util.UUID;
 @Builder
 @Audited
 public class User implements UserDetails {
+
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
     @JdbcTypeCode(SqlTypes.UUID)

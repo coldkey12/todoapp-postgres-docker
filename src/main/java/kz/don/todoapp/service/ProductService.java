@@ -11,8 +11,8 @@ import kz.don.todoapp.exceptions.ProductOutOfStock;
 import kz.don.todoapp.mappers.ProductMapper;
 import kz.don.todoapp.mappers.UserTransactionMapper;
 import kz.don.todoapp.repository.ProductRepository;
-import kz.don.todoapp.repository.UserRepository;
 import kz.don.todoapp.repository.UserTransactionRepository;
+import kz.don.todoapp.repository.WalletRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
@@ -33,33 +33,27 @@ public class ProductService {
     private final UserTransactionRepository userTransactionRepository;
     private final ProductRepository productRepository;
     private final UserTransactionMapper userTransactionMapper;
-    private final UserRepository userRepository;
     private final UserService userService;
     private final ProductMapper productMapper;
+    private final WalletRepository walletRepository;
 
     public List<Product> getAllProducts() {
         return productRepository.findAll();
     }
 
     public List<ProductResponse> getAllProductsStreamFiltered(ProductFilter productFilter) {
-        return productRepository.findAll().stream().sorted((p1, p2) -> {
-                    return switch (productFilter.getSortBy()) {
-                        case "price" ->
-                                "desc".equalsIgnoreCase(productFilter.getDirection()) ? p2.getPrice().compareTo(p1.getPrice()) : p1.getPrice().compareTo(p2.getPrice());
-                        case "quantity" ->
-                                "desc".equalsIgnoreCase(productFilter.getDirection()) ? p2.getQuantity().compareTo(p1.getQuantity()) : p1.getQuantity().compareTo(p2.getQuantity());
-                        default -> 0;
-                    };
-                })
+        return productRepository.findAll().stream().sorted((p1, p2) -> switch (productFilter.getSortBy()) {
+            case "price" ->
+                    "desc".equalsIgnoreCase(productFilter.getDirection()) ? p2.getPrice().compareTo(p1.getPrice()) : p1.getPrice().compareTo(p2.getPrice());
+            case "quantity" ->
+                    "desc".equalsIgnoreCase(productFilter.getDirection()) ? p2.getQuantity().compareTo(p1.getQuantity()) : p1.getQuantity().compareTo(p2.getQuantity());
+            default -> 0;
+        })
                 .limit(productFilter.getAmount())
                 .map(productMapper::toProductResponse)
                 .filter(product -> product.getQuantity() > 500)
                 .toList();
     }
-
-//    public List<ProductResponsePaged> getAllProductsPaginated(ProductFilter productFilter) {
-//        return productRepository.findAll(PageRequest.of(productFilter.getPage(), productFilter.getSize())).forEach(product -> {return productMapper.toProductResponsePaged();});
-//    }
 
     public Page<ProductResponse> getAllProductsPaginated(ProductFilter productFilter) {
         Page<Product> productPage = productRepository.findAll(PageRequest.of(productFilter.getPage(), productFilter.getSize()));
@@ -142,24 +136,26 @@ public class ProductService {
         userTransactionRepository.deleteById(userTransaction.getId());
     }
 
-    public void addPaymentInfo(String walletId) {
-        User user = userService.getCurrentUser();
-        user.setSomeThirdPartyPaymentServiceWalletId(walletId);
-        userRepository.save(user);
-    }
-
+    @Transactional
     public void purchaseOrder(UUID transactionId) {
         User user = userService.getCurrentUser();
-        if (user.getSomeThirdPartyPaymentServiceWalletId() == null) {
+        if (user.getWallet() == null) {
             throw new IllegalArgumentException("User has not provided payment information.");
         }
-        log.info("Processing payment for transaction ID: {} using wallet ID: {}", transactionId, user.getSomeThirdPartyPaymentServiceWalletId());
-        Optional<UserTransaction> userTransaction = userTransactionRepository.findById(transactionId);
-        if (userTransaction.isEmpty()) {
-            throw new IllegalArgumentException("Transaction with that ID doesn't exist");
+        log.info("Processing payment for transaction ID: {} using wallet ID: {}", transactionId, user.getWallet().getId());
+
+        UserTransaction userTransaction = userTransactionRepository.findById(transactionId)
+                .orElseThrow(() -> new IllegalArgumentException("Transaction with that ID doesn't exist"));
+
+        if (user.getWallet().getBalance() < userTransaction.getProduct().getPrice() * userTransaction.getQuantity()) {
+            throw new IllegalArgumentException("Insufficient balance in wallet.");
         }
-        userTransaction.get().setTransactionStatus(UserTranscationStatus.PAID);
-        userTransactionRepository.save(userTransaction.get());
+
+        user.getWallet().setBalance(user.getWallet().getBalance() - userTransaction.getProduct().getPrice() * userTransaction.getQuantity());
+        walletRepository.save(user.getWallet());
+
+        userTransaction.setTransactionStatus(UserTranscationStatus.PAID);
+        userTransactionRepository.save(userTransaction);
     }
 
     public void updateProduct(UUID productId, Product product) {
