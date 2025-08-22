@@ -1,10 +1,13 @@
 package kz.don.todoapp.controller.user;
 
+import kz.don.todoapp.dto.ProductFilter;
 import kz.don.todoapp.dto.request.UserTransactionRequest;
+import kz.don.todoapp.dto.response.ProductResponse;
 import kz.don.todoapp.entity.Product;
 import kz.don.todoapp.enums.UserTranscationStatus;
 import kz.don.todoapp.service.ProductService;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.domain.Page;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
@@ -29,28 +32,14 @@ public class MarketplaceController {
         return ResponseEntity.ok(productService.getAllProducts());
     }
 
-    @GetMapping("/products/filters")
-    public ResponseEntity<List<Product>> getAllProducts(
-            @RequestParam String sortBy, // price / quantity
-            @RequestParam String sortDirection, // asc / desc
-            @RequestParam int n) {
-        if (n <= 0) {
-            n = 5;
-        }
-        return ResponseEntity.ok(productService.getAllProductsFiltered(sortBy, sortDirection, n));
+    @GetMapping("/products/pagination")
+    public ResponseEntity<Page<ProductResponse>> getAllProducts(@RequestBody ProductFilter productFilter) {
+        return ResponseEntity.ok(productService.getAllProductsPaginated(productFilter));
     }
 
-    @GetMapping("/products/{keyword}")
-    public ResponseEntity<List<Product>> searchProducts(
-            @PathVariable String keyword, // title / description
-            @RequestParam String sortBy, // price / quantity
-            @RequestParam String sortDirection, // asc / desc
-            @RequestParam int n
-    ) {
-        if (n <= 0) {
-            n = 5;
-        }
-        return ResponseEntity.ok(productService.searchProducts(keyword, sortBy, sortDirection, n));
+    @GetMapping("/products/stream")
+    public ResponseEntity<List<ProductResponse>> searchProducts(@RequestBody ProductFilter productFilter) {
+        return ResponseEntity.ok(productService.getAllProductsStreamFiltered(productFilter));
     }
 
     @PostMapping("/place-order")

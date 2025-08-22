@@ -1,19 +1,23 @@
 package kz.don.todoapp.service;
 
+import kz.don.todoapp.dto.ProductFilter;
 import kz.don.todoapp.dto.request.UserTransactionRequest;
+import kz.don.todoapp.dto.response.ProductResponse;
 import kz.don.todoapp.entity.Product;
 import kz.don.todoapp.entity.User;
 import kz.don.todoapp.entity.UserTransaction;
 import kz.don.todoapp.enums.UserTranscationStatus;
 import kz.don.todoapp.exceptions.ProductOutOfStock;
+import kz.don.todoapp.mappers.ProductMapper;
 import kz.don.todoapp.mappers.UserTransactionMapper;
 import kz.don.todoapp.repository.ProductRepository;
 import kz.don.todoapp.repository.UserRepository;
 import kz.don.todoapp.repository.UserTransactionRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
-import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
@@ -30,21 +34,35 @@ public class ProductService {
     private final UserTransactionMapper userTransactionMapper;
     private final UserRepository userRepository;
     private final UserService userService;
+    private final ProductMapper productMapper;
 
     public List<Product> getAllProducts() {
         return productRepository.findAll();
     }
 
-    public List<Product> getAllProductsFiltered(String sortBy, String sortDirection, int n) {
-        PageRequest pageRequest = PageRequest.of(0, n, Sort.by(Sort.Direction.fromString(sortDirection), sortBy));
-        return productRepository.findAll(pageRequest).getContent();
+    public List<ProductResponse> getAllProductsStreamFiltered(ProductFilter productFilter) {
+        return productRepository.findAll().stream().sorted((p1, p2) -> {
+                    return switch (productFilter.getSortBy()) {
+                        case "price" ->
+                                "desc".equalsIgnoreCase(productFilter.getDirection()) ? p2.getPrice().compareTo(p1.getPrice()) : p1.getPrice().compareTo(p2.getPrice());
+                        case "quantity" ->
+                                "desc".equalsIgnoreCase(productFilter.getDirection()) ? p2.getQuantity().compareTo(p1.getQuantity()) : p1.getQuantity().compareTo(p2.getQuantity());
+                        default -> 0;
+                    };
+                })
+                .limit(productFilter.getAmount()).map(productMapper::toProductResponse).toList();
+
     }
 
-    public List<Product> searchProducts(String keyword, String sortBy, String sortDirection, int n) {
-        Sort.Direction direction = Sort.Direction.fromString(sortDirection);
-        Sort sort = Sort.by(direction, sortBy);
-        PageRequest pageRequest = PageRequest.of(0, n, sort);
-        return productRepository.findByTitleContainingIgnoreCaseOrDescriptionContainingIgnoreCase(keyword, keyword, pageRequest);
+//    public List<ProductResponsePaged> getAllProductsPaginated(ProductFilter productFilter) {
+//        return productRepository.findAll(PageRequest.of(productFilter.getPage(), productFilter.getSize())).forEach(product -> {return productMapper.toProductResponsePaged();});
+//    }
+
+    public Page<ProductResponse> getAllProductsPaginated(ProductFilter productFilter) {
+        Page<Product> productPage = productRepository.findAll(PageRequest.of(productFilter.getPage(), productFilter.getSize()));
+        List<Product> products = productPage.getContent();
+        List<ProductResponse> productResponses = products.stream().map(productMapper::toProductResponse).toList();
+        return new PageImpl<>(productResponses, PageRequest.of(productFilter.getPage(), productFilter.getSize()), productPage.getTotalElements());
     }
 
     public void createProduct(Product product) {
