@@ -93,14 +93,14 @@ public class ProductService {
         if (product.getQuantity() < request.getQuantity()) {
             throw new ProductOutOfStock(product.getTitle());
         }
-        if (userTransactionOld != null) {
-            userTransactionOld.setQuantity(userTransactionOld.getQuantity() + request.getQuantity());
-            userTransactionRepository.save(userTransactionOld);
-
-            product.setQuantity(product.getQuantity() - request.getQuantity());
-            productRepository.save(product);
-            return userTransactionOld;
-        }
+//        if (userTransactionOld != null) {
+//            userTransactionOld.setQuantity(userTransactionOld.getQuantity() + request.getQuantity());
+//            userTransactionRepository.save(userTransactionOld);
+//
+//            product.setQuantity(product.getQuantity() - request.getQuantity());
+//            productRepository.save(product);
+//            return userTransactionOld;
+//        }
 
         UserTransaction userTransaction = userTransactionMapper.toUserTransaction(request);
         userTransaction.setUser(user);
