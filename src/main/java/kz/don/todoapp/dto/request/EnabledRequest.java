@@ -1,4 +1,4 @@
-package kz.don.todoapp.dto;
+package kz.don.todoapp.dto.request;
 
 import lombok.Data;
 

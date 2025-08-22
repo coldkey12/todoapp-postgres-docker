@@ -2,7 +2,7 @@ package kz.don.todoapp.controller.admin;
 
 import jakarta.persistence.EntityNotFoundException;
 import jakarta.transaction.Transactional;
-import kz.don.todoapp.dto.EnabledRequest;
+import kz.don.todoapp.dto.request.EnabledRequest;
 import kz.don.todoapp.dto.response.UserResponse;
 import kz.don.todoapp.entity.User;
 import kz.don.todoapp.enums.RoleEnum;

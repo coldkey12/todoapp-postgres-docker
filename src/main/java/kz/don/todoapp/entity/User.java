@@ -3,7 +3,6 @@ package kz.don.todoapp.entity;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 import kz.don.todoapp.enums.RoleEnum;
-import kz.don.todoapp.envers.UserRevisionListener;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -43,8 +42,9 @@ public class User implements UserDetails {
     @Column(nullable = false)
     private String password;
 
-    @Column(unique = true)
-    private String someThirdPartyPaymentServiceWalletId;
+    @OneToOne(mappedBy = "user", cascade = CascadeType.ALL)
+    @JoinColumn(name = "wallet_id", referencedColumnName = "id")
+    private Wallet wallet;
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)

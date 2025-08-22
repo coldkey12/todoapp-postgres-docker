@@ -17,6 +17,7 @@ import java.util.UUID;
 @AllArgsConstructor
 @Builder
 public class Product {
+
     @Id
     @GeneratedValue
     @JdbcTypeCode(SqlTypes.UUID)

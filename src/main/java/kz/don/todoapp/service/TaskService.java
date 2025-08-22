@@ -21,6 +21,7 @@ import java.util.UUID;
 @RequiredArgsConstructor
 @Slf4j
 public class TaskService {
+
     private final TaskRepository taskRepository;
     private final UserService userService;
     private final TaskMapper taskMapper;

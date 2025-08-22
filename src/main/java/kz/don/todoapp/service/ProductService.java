@@ -19,6 +19,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 import java.util.Optional;
@@ -50,8 +51,10 @@ public class ProductService {
                         default -> 0;
                     };
                 })
-                .limit(productFilter.getAmount()).map(productMapper::toProductResponse).toList();
-
+                .limit(productFilter.getAmount())
+                .map(productMapper::toProductResponse)
+                .filter(product -> product.getQuantity() > 500)
+                .toList();
     }
 
 //    public List<ProductResponsePaged> getAllProductsPaginated(ProductFilter productFilter) {
@@ -117,6 +120,7 @@ public class ProductService {
         return userTransaction;
     }
 
+    @Transactional
     public void cancelOrder(UUID transactionId) {
         UserTransaction userTransaction = userTransactionRepository.findById(transactionId).orElseThrow(() -> new IllegalArgumentException("User transaction with that ID doesn't exist."));
 
