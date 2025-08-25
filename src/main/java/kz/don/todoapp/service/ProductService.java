@@ -1,9 +1,11 @@
 package kz.don.todoapp.service;
 
 import kz.don.todoapp.dto.ProductFilter;
+import kz.don.todoapp.dto.TransactionDTO;
 import kz.don.todoapp.dto.request.UserTransactionRequest;
 import kz.don.todoapp.dto.response.ProductResponse;
 import kz.don.todoapp.entity.Product;
+import kz.don.todoapp.entity.RefreshToken;
 import kz.don.todoapp.entity.User;
 import kz.don.todoapp.entity.UserTransaction;
 import kz.don.todoapp.enums.UserTranscationStatus;
@@ -11,6 +13,7 @@ import kz.don.todoapp.exceptions.ProductOutOfStock;
 import kz.don.todoapp.mappers.ProductMapper;
 import kz.don.todoapp.mappers.UserTransactionMapper;
 import kz.don.todoapp.repository.ProductRepository;
+import kz.don.todoapp.repository.RefreshTokenRepository;
 import kz.don.todoapp.repository.UserTransactionRepository;
 import kz.don.todoapp.repository.WalletRepository;
 import lombok.RequiredArgsConstructor;
@@ -18,8 +21,13 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
+import org.springframework.http.HttpEntity;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.client.RestTemplate;
 
 import java.util.List;
 import java.util.Optional;
@@ -30,6 +38,8 @@ import java.util.UUID;
 @RequiredArgsConstructor
 public class ProductService {
 
+    private final RefreshTokenRepository refreshTokenRepository;
+    private final RestTemplate restTemplate;
     private final UserTransactionRepository userTransactionRepository;
     private final ProductRepository productRepository;
     private final UserTransactionMapper userTransactionMapper;
@@ -43,12 +53,12 @@ public class ProductService {
 
     public List<ProductResponse> getAllProductsStreamFiltered(ProductFilter productFilter) {
         return productRepository.findAll().stream().sorted((p1, p2) -> switch (productFilter.getSortBy()) {
-            case "price" ->
-                    "desc".equalsIgnoreCase(productFilter.getDirection()) ? p2.getPrice().compareTo(p1.getPrice()) : p1.getPrice().compareTo(p2.getPrice());
-            case "quantity" ->
-                    "desc".equalsIgnoreCase(productFilter.getDirection()) ? p2.getQuantity().compareTo(p1.getQuantity()) : p1.getQuantity().compareTo(p2.getQuantity());
-            default -> 0;
-        })
+                    case "price" ->
+                            "desc".equalsIgnoreCase(productFilter.getDirection()) ? p2.getPrice().compareTo(p1.getPrice()) : p1.getPrice().compareTo(p2.getPrice());
+                    case "quantity" ->
+                            "desc".equalsIgnoreCase(productFilter.getDirection()) ? p2.getQuantity().compareTo(p1.getQuantity()) : p1.getQuantity().compareTo(p2.getQuantity());
+                    default -> 0;
+                })
                 .limit(productFilter.getAmount())
                 .map(productMapper::toProductResponse)
                 .filter(product -> product.getQuantity() > 500)
@@ -62,6 +72,7 @@ public class ProductService {
         return new PageImpl<>(productResponses, PageRequest.of(productFilter.getPage(), productFilter.getSize()), productPage.getTotalElements());
     }
 
+    @Transactional
     public void createProduct(Product product) {
         Product productCheck = productRepository.findByTitle(product.getTitle());
 
@@ -76,10 +87,41 @@ public class ProductService {
             return;
         }
         product.setAvailable(true);
+        product = productRepository.save(product);
 
-        productRepository.save(product);
+        HttpHeaders headers = new HttpHeaders();
+
+        RefreshToken refreshToken = refreshTokenRepository.findByUser(userService.getCurrentUser())
+                .orElseThrow(() -> new IllegalArgumentException("Token with that user doesn't exist"));
+
+        headers.setBearerAuth(refreshToken.getToken());
+        headers.setContentType(MediaType.APPLICATION_JSON);
+
+        double sum = product.getPrice() * product.getQuantity();
+
+        TransactionDTO dto = TransactionDTO.builder()
+                .sum(sum)
+                .pricePerPiece(product.getPrice())
+                .transactionType("INVENTORY")
+                .userId(String.valueOf(userService.getCurrentUser().getId()))
+                .quantity(Math.toIntExact(product.getQuantity()))
+                .productId(String.valueOf(product.getId()))
+                .build();
+
+        HttpEntity<TransactionDTO> entity = new HttpEntity<>(dto, headers);
+
+        ResponseEntity<String> response = restTemplate.postForEntity(
+                "http://localhost:8081/accounting",
+                entity,
+                String.class
+        );
+
+        if (!response.getStatusCode().is2xxSuccessful()) {
+            throw new IllegalStateException("Failed to send transaction: " + response.getStatusCode());
+        }
     }
 
+    @Transactional
     public UserTransaction placeOrder(UserTransactionRequest request) {
         User user = userService.getCurrentUser();
 
@@ -88,19 +130,10 @@ public class ProductService {
         if (!product.isAvailable()) {
             throw new IllegalArgumentException("Product with that ID is not available.");
         }
-        UserTransaction userTransactionOld = userTransactionRepository.findByUserIdAndProductId(user.getId(), UUID.fromString(request.getProductId()));
 
         if (product.getQuantity() < request.getQuantity()) {
             throw new ProductOutOfStock(product.getTitle());
         }
-//        if (userTransactionOld != null) {
-//            userTransactionOld.setQuantity(userTransactionOld.getQuantity() + request.getQuantity());
-//            userTransactionRepository.save(userTransactionOld);
-//
-//            product.setQuantity(product.getQuantity() - request.getQuantity());
-//            productRepository.save(product);
-//            return userTransactionOld;
-//        }
 
         UserTransaction userTransaction = userTransactionMapper.toUserTransaction(request);
         userTransaction.setUser(user);
@@ -154,6 +187,39 @@ public class ProductService {
         user.getWallet().setBalance(user.getWallet().getBalance() - userTransaction.getProduct().getPrice() * userTransaction.getQuantity());
         walletRepository.save(user.getWallet());
 
+        Product product = userTransaction.getProduct();
+
+        HttpHeaders headers = new HttpHeaders();
+
+        RefreshToken refreshToken = refreshTokenRepository.findByUser(userService.getCurrentUser())
+                .orElseThrow(() -> new IllegalArgumentException("Token with that user doesn't exist"));
+
+        headers.setBearerAuth(refreshToken.getToken());
+        headers.setContentType(MediaType.APPLICATION_JSON);
+
+        double sum = product.getPrice() * userTransaction.getQuantity();
+
+        TransactionDTO dto = TransactionDTO.builder()
+                .sum(sum)
+                .pricePerPiece(product.getPrice())
+                .transactionType("PURCHASE")
+                .userId(String.valueOf(userService.getCurrentUser().getId()))
+                .quantity(Math.toIntExact(userTransaction.getQuantity()))
+                .productId(String.valueOf(product.getId()))
+                .build();
+
+        HttpEntity<TransactionDTO> entity = new HttpEntity<>(dto, headers);
+
+        ResponseEntity<String> response = restTemplate.postForEntity(
+                "http://localhost:8081/accounting",
+                entity,
+                String.class
+        );
+
+        if (!response.getStatusCode().is2xxSuccessful()) {
+            throw new IllegalStateException("Failed to send transaction: " + response.getStatusCode());
+        }
+
         userTransaction.setTransactionStatus(UserTranscationStatus.PAID);
         userTransactionRepository.save(userTransaction);
     }
@@ -168,24 +234,53 @@ public class ProductService {
     }
 
     public void deleteProductById(UUID productId) {
-        Optional<Product> product = productRepository.findById(productId);
+        Product product = productRepository.findById(productId).orElseThrow(() -> new IllegalArgumentException("Token with that user doesn't exist"));
         List<UserTransaction> userTransactions = userTransactionRepository.existsByProductIdAndTransactionStatus(productId, UserTranscationStatus.ORDER);
         System.out.println(userTransactions.size());
 
         if (!userTransactions.isEmpty()) {
-            if (product.isEmpty()) {
+            if (product!=null) {
                 throw new IllegalArgumentException("Product with that ID doesn't exist");
             }
-            product.get().setAvailable(false);
-            productRepository.save(product.get());
             return;
         }
-        if (product.isEmpty()) {
+        if (product==null) {
             throw new IllegalArgumentException("Product with that ID doesn't exist");
         }
 
-        userTransactionRepository.deleteById(product.get().getId());
-        productRepository.delete(product.get());
+        HttpHeaders headers = new HttpHeaders();
+
+        RefreshToken refreshToken = refreshTokenRepository.findByUser(userService.getCurrentUser())
+                .orElseThrow(() -> new IllegalArgumentException("Token with that user doesn't exist"));
+
+        headers.setBearerAuth(refreshToken.getToken());
+        headers.setContentType(MediaType.APPLICATION_JSON);
+
+        double sum = product.getPrice() * product.getQuantity();
+
+        TransactionDTO dto = TransactionDTO.builder()
+                .sum(sum)
+                .pricePerPiece(product.getPrice())
+                .transactionType("REMOVED")
+                .userId(String.valueOf(userService.getCurrentUser().getId()))
+                .quantity(Math.toIntExact(product.getQuantity()))
+                .productId(String.valueOf(product.getId()))
+                .build();
+
+        HttpEntity<TransactionDTO> entity = new HttpEntity<>(dto, headers);
+
+        ResponseEntity<String> response = restTemplate.postForEntity(
+                "http://localhost:8081/accounting",
+                entity,
+                String.class
+        );
+
+        if (!response.getStatusCode().is2xxSuccessful()) {
+            throw new IllegalStateException("Failed to send transaction: " + response.getStatusCode());
+        }
+
+        userTransactionRepository.deleteById(product.getId());
+        productRepository.delete(product);
     }
 
     public void shipProduct(UUID transactionId) {

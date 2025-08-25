@@ -24,12 +24,14 @@ public class BMWController {
     public ResponseEntity<String> saveBmw(@RequestBody BMWDTO bmwDTO) {
         BMW bmw = bmwMapper.toEntity(bmwDTO);
 
+        log.info("is m series? : {}", bmwDTO.isMSeries());
+
         bmwService.save(bmw);
         return ResponseEntity.ok("bmw v dto? bmw na sto.");
     }
 
     @GetMapping
-    public ResponseEntity<BMWDTO> getBmw(String uuid) {
+    public ResponseEntity<BMWDTO> getBmw(@RequestParam String uuid) {
         BMWDTO bmwdto = bmwService.getBmw(UUID.fromString(uuid));
         return ResponseEntity.ok(bmwdto);
     }
