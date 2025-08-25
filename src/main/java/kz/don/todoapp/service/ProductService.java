@@ -18,6 +18,8 @@ import kz.don.todoapp.repository.UserTransactionRepository;
 import kz.don.todoapp.repository.WalletRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.cache.annotation.CachePut;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
@@ -65,6 +67,7 @@ public class ProductService {
                 .toList();
     }
 
+    @Cacheable(value = "PRODUCT_CACHE", key = "#productId")
     public Page<ProductResponse> getAllProductsPaginated(ProductFilter productFilter) {
         Page<Product> productPage = productRepository.findAll(PageRequest.of(productFilter.getPage(), productFilter.getSize()));
         List<Product> products = productPage.getContent();
@@ -73,6 +76,7 @@ public class ProductService {
     }
 
     @Transactional
+    @CachePut(value = "PRODUCT_CACHE", key = "#result.id()")
     public void createProduct(Product product) {
         Product productCheck = productRepository.findByTitle(product.getTitle());
 
@@ -224,6 +228,7 @@ public class ProductService {
         userTransactionRepository.save(userTransaction);
     }
 
+    @CachePut(value = "PRODUCT_CACHE", key = "#result.id()")
     public void updateProduct(UUID productId, Product product) {
         if (product.getQuantity() < 0) {
             throw new IllegalArgumentException("Product quantity cannot be negative.");
@@ -239,12 +244,12 @@ public class ProductService {
         System.out.println(userTransactions.size());
 
         if (!userTransactions.isEmpty()) {
-            if (product!=null) {
+            if (product != null) {
                 throw new IllegalArgumentException("Product with that ID doesn't exist");
             }
             return;
         }
-        if (product==null) {
+        if (product == null) {
             throw new IllegalArgumentException("Product with that ID doesn't exist");
         }
 
