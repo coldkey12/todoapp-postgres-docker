@@ -4,16 +4,15 @@ import kz.don.todoapp.entity.UserTransaction;
 import kz.don.todoapp.enums.UserTranscationStatus;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.redis.core.RedisHash;
 import org.springframework.stereotype.Repository;
 
 import java.util.List;
 import java.util.UUID;
 
 @Repository
+@RedisHash
 public interface UserTransactionRepository extends JpaRepository<UserTransaction, UUID> {
-
-    @Query("SELECT ut FROM UserTransaction ut WHERE ut.user.id = :userId AND ut.product.id = :productId")
-    UserTransaction findByUserIdAndProductId(UUID userId, UUID productId);
 
     void deleteById(UUID userTransactionId);
 

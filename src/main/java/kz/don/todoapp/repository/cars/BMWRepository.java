@@ -2,9 +2,11 @@ package kz.don.todoapp.repository.cars;
 
 import kz.don.todoapp.entity.cars.BMW;
 import kz.don.todoapp.repository.cars.base.CarRepository;
+import org.springframework.data.redis.core.RedisHash;
 import org.springframework.stereotype.Repository;
 
 @Repository
+@RedisHash
 public interface BMWRepository extends CarRepository<BMW> {
 
 }

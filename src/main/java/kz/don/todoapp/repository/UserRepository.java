@@ -5,12 +5,14 @@ import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
 import kz.don.todoapp.entity.User;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.redis.core.RedisHash;
 import org.springframework.stereotype.Repository;
 
 import java.util.Optional;
 import java.util.UUID;
 
 @Repository
+@RedisHash
 public interface UserRepository extends JpaRepository<User, UUID> {
     Optional<User> findByUsername(String username);
 
