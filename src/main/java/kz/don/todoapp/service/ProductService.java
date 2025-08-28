@@ -56,7 +56,15 @@ public class ProductService {
 
     private <T> T getFromCache(String key, Class<T> type) {
         Object cached = redisTemplate.opsForValue().get(key);
-        return type.isInstance(cached) ? type.cast(cached) : null;
+        if (cached == null) {
+            return null;
+        }
+
+        if (type.isInstance(cached)) {
+            return type.cast(cached);
+        }
+
+        return null;
     }
 
     private void setInCache(String key, Object value) {
@@ -82,7 +90,7 @@ public class ProductService {
         return productRepository.findAll();
     }
 
-    private List<ProductResponse> getProductsByIdsRedis(List<String> productIds) {
+    private List<ProductResponse> getProductsByIdsRedis(List<?> productIds) {
         List<ProductResponse> products = new ArrayList<>();
         List<UUID> missingProductIds = new ArrayList<>();
 
@@ -90,18 +98,28 @@ public class ProductService {
             return null;
         }
 
-        for (String productId : productIds) {
-            ProductResponse cachedProduct = getFromCache(getProductKey(UUID.fromString(productId)), ProductResponse.class);
+        for (Object productIdObj : productIds) {
+            UUID productId;
+            if (productIdObj instanceof String) {
+                productId = UUID.fromString((String) productIdObj);
+            } else if (productIdObj instanceof UUID) {
+                productId = (UUID) productIdObj;
+            } else {
+                continue;
+            }
+
+            ProductResponse cachedProduct = getFromCache(getProductKey(productId), ProductResponse.class);
             if (cachedProduct != null) {
                 products.add(cachedProduct);
             } else {
-                missingProductIds.add(UUID.fromString(productId));
+                missingProductIds.add(productId);
             }
         }
 
         if (!missingProductIds.isEmpty()) {
             List<Product> dbProducts = productRepository.findAllById(missingProductIds);
             for (Product product : dbProducts) {
+                log.info("IS MISSING");
                 cacheProduct(product);
                 products.add(productMapper.toProductResponse(product));
             }
@@ -113,6 +131,7 @@ public class ProductService {
     public List<ProductResponse> getAllProductsStreamFiltered(ProductFilter productFilter) {
         String filterKey = FILTERED_PRODUCTS_IDS_KEY_PREFIX + productFilter.toString();
         List<ProductResponse> responses = getProductsByIdsRedis(getFromCache(filterKey, List.class));
+
         if (responses != null) {
             log.info("DATA FOUND IN REDIS");
             return responses;
