@@ -30,10 +30,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.client.RestTemplate;
 
-import java.util.List;
-import java.util.Optional;
-import java.util.Set;
-import java.util.UUID;
+import java.util.*;
 
 @Slf4j
 @Service
@@ -50,12 +47,11 @@ public class ProductService {
     private final WalletRepository walletRepository;
     private final RedisTemplate<String, Object> redisTemplate;
 
-    private static final String PRODUCT_RESPONSE_CACHE = "PRODUCT_RESPONSE_CACHE";
-    private static final String PRODUCT_PAGES_CACHE = "PRODUCT_PAGES_CACHE";
-    private static final String PRODUCT_CACHE = "PRODUCT_CACHE";
+    private static final String PRODUCT_KEY_PREFIX = "PRODUCT::";
+    private static final String FILTERED_PRODUCTS_IDS_KEY_PREFIX = "FILTERED_PRODUCTS_IDS::";
 
-    private String getProductFilterKey(String cacheName, ProductFilter filter) {
-        return cacheName + "::" + filter.toString();
+    private String getProductKey(UUID productId) {
+        return PRODUCT_KEY_PREFIX + productId;
     }
 
     private <T> T getFromCache(String key, Class<T> type) {
@@ -67,24 +63,64 @@ public class ProductService {
         redisTemplate.opsForValue().set(key, value);
     }
 
-    private void evictCacheByPattern(String pattern) {
-        Set<String> keys = redisTemplate.keys(pattern);
-        if (keys != null && !keys.isEmpty()) {
-            redisTemplate.delete(keys);
-        }
+    private void deleteFromCache(String key) {
+        redisTemplate.delete(key);
+    }
+
+    private void cacheProduct(Product product) {
+        String key = getProductKey(product.getId());
+        ProductResponse response = productMapper.toProductResponse(product);
+        setInCache(key, response);
+    }
+
+    private void evictProductFromCache(UUID productId) {
+        String key = getProductKey(productId);
+        deleteFromCache(key);
     }
 
     public List<Product> getAllProducts() {
         return productRepository.findAll();
     }
 
-    public List<ProductResponse> getAllProductsStreamFiltered(ProductFilter productFilter) {
-        String cacheKey = getProductFilterKey(PRODUCT_RESPONSE_CACHE, productFilter);
-        List<ProductResponse> cached = getFromCache(cacheKey, List.class);
-        if (cached != null) {
-            return cached;
+    private List<ProductResponse> getProductsByIdsRedis(List<String> productIds) {
+        List<ProductResponse> products = new ArrayList<>();
+        List<UUID> missingProductIds = new ArrayList<>();
+
+        if (productIds == null || productIds.isEmpty()) {
+            return null;
         }
-        List<ProductResponse> result = productRepository.findAll().stream().sorted((p1, p2) -> switch (productFilter.getSortBy()) {
+
+        for (String productId : productIds) {
+            ProductResponse cachedProduct = getFromCache(getProductKey(UUID.fromString(productId)), ProductResponse.class);
+            if (cachedProduct != null) {
+                products.add(cachedProduct);
+            } else {
+                missingProductIds.add(UUID.fromString(productId));
+            }
+        }
+
+        if (!missingProductIds.isEmpty()) {
+            List<Product> dbProducts = productRepository.findAllById(missingProductIds);
+            for (Product product : dbProducts) {
+                cacheProduct(product);
+                products.add(productMapper.toProductResponse(product));
+            }
+        }
+
+        return products;
+    }
+
+    public List<ProductResponse> getAllProductsStreamFiltered(ProductFilter productFilter) {
+        String filterKey = FILTERED_PRODUCTS_IDS_KEY_PREFIX + productFilter.toString();
+        List<ProductResponse> responses = getProductsByIdsRedis(getFromCache(filterKey, List.class));
+        if (responses != null) {
+            log.info("DATA FOUND IN REDIS");
+            return responses;
+        }
+
+        List<UUID> ids = new ArrayList<>();
+
+        List<ProductResponse> productResponses = productRepository.findAll().stream().sorted((p1, p2) -> switch (productFilter.getSortBy()) {
                     case "price" ->
                             "desc".equalsIgnoreCase(productFilter.getDirection()) ? p2.getPrice().compareTo(p1.getPrice()) : p1.getPrice().compareTo(p2.getPrice());
                     case "quantity" ->
@@ -93,18 +129,27 @@ public class ProductService {
                 })
                 .limit(productFilter.getAmount())
                 .map(productMapper::toProductResponse)
-                .filter(product -> product.getQuantity() > 500)
                 .toList();
 
-        setInCache(cacheKey, result);
-        return result;
+        for (ProductResponse productResponse : productResponses) {
+            ids.add(productResponse.getId());
+        }
+        setInCache(FILTERED_PRODUCTS_IDS_KEY_PREFIX + productFilter, ids);
+
+        return productResponses;
     }
 
     public Page<ProductResponse> getAllProductsPaginated(ProductFilter productFilter) {
-        String cacheKey = getProductFilterKey(PRODUCT_PAGES_CACHE, productFilter);
-        Page<ProductResponse> cached = getFromCache(cacheKey, Page.class);
-        if (cached != null) {
-            return cached;
+
+        String filterKey = FILTERED_PRODUCTS_IDS_KEY_PREFIX + productFilter.toString();
+        List<ProductResponse> responses = getProductsByIdsRedis(getFromCache(filterKey, List.class));
+        if (responses != null) {
+            log.info("DATA FOUND IN REDIS");
+            return new PageImpl<>(
+                    responses,
+                    PageRequest.of(productFilter.getPage(), productFilter.getSize()),
+                    responses.size()
+            );
         }
 
         Page<Product> productPage = productRepository.findAll(PageRequest.of(productFilter.getPage(), productFilter.getSize()));
@@ -112,14 +157,17 @@ public class ProductService {
                 .map(productMapper::toProductResponse)
                 .toList();
 
-        Page<ProductResponse> result = new PageImpl<>(
+        List<UUID> ids = new ArrayList<>();
+        for (ProductResponse productResponse : productResponses) {
+            ids.add(productResponse.getId());
+        }
+        setInCache(FILTERED_PRODUCTS_IDS_KEY_PREFIX + productFilter, ids);
+
+        return new PageImpl<>(
                 productResponses,
                 PageRequest.of(productFilter.getPage(), productFilter.getSize()),
                 productPage.getTotalElements()
         );
-
-        setInCache(cacheKey, result);
-        return result;
     }
 
     @Transactional
@@ -170,8 +218,10 @@ public class ProductService {
             throw new IllegalStateException("Failed to send transaction: " + response.getStatusCode());
         }
 
-        evictCacheByPattern(PRODUCT_RESPONSE_CACHE + "*");
-        evictCacheByPattern(PRODUCT_PAGES_CACHE + "*");
+        Set<String> keys = redisTemplate.keys(FILTERED_PRODUCTS_IDS_KEY_PREFIX + "*");
+        if (keys != null && !keys.isEmpty()) {
+            redisTemplate.delete(keys);
+        }
     }
 
     @Transactional
@@ -197,6 +247,10 @@ public class ProductService {
         product.setQuantity(product.getQuantity() - request.getQuantity());
         productRepository.save(product);
 
+        if (getFromCache(PRODUCT_KEY_PREFIX + product.getId(), ProductResponse.class) != null) {
+            setInCache(PRODUCT_KEY_PREFIX + product.getId(), productMapper.toProductResponse(product));
+        }
+
         return userTransaction;
     }
 
@@ -212,6 +266,7 @@ public class ProductService {
 
             product.setQuantity(product.getQuantity() + userTransaction.getQuantity());
             productRepository.save(product);
+
             return;
         }
 
@@ -219,6 +274,9 @@ public class ProductService {
 
         product.setQuantity(product.getQuantity() + userTransaction.getQuantity());
         productRepository.save(product);
+        if (getFromCache(PRODUCT_KEY_PREFIX + product.getId(), ProductResponse.class) != null) {
+            setInCache(PRODUCT_KEY_PREFIX + product.getId(), productMapper.toProductResponse(product));
+        }
         userTransactionRepository.deleteById(userTransaction.getId());
     }
 
@@ -283,15 +341,11 @@ public class ProductService {
         }
         product.setAvailable(true);
         product.setId(productId);
-        productRepository.save(product);
 
-        String productKey = PRODUCT_CACHE + "::" + productId;
-        if (Boolean.TRUE.equals(redisTemplate.hasKey(productKey))) {
-            setInCache(productKey, productMapper.toProductResponse(product));
+        if (getFromCache(PRODUCT_KEY_PREFIX + product.getId(), ProductResponse.class) != null) {
+            setInCache(PRODUCT_KEY_PREFIX + product.getId(), productMapper.toProductResponse(product));
         }
-
-        evictCacheByPattern(PRODUCT_RESPONSE_CACHE + "*");
-        evictCacheByPattern(PRODUCT_PAGES_CACHE + "*");
+        productRepository.save(product);
     }
 
     public void deleteProductById(UUID productId) {
@@ -340,12 +394,9 @@ public class ProductService {
             throw new IllegalStateException("Failed to send transaction: " + response.getStatusCode());
         }
 
+        evictProductFromCache(productId);
         userTransactionRepository.deleteById(product.getId());
         productRepository.delete(product);
-
-        redisTemplate.delete(PRODUCT_CACHE + "::" + productId);
-        evictCacheByPattern(PRODUCT_RESPONSE_CACHE + "*");
-        evictCacheByPattern(PRODUCT_PAGES_CACHE + "*");
     }
 
     public void shipProduct(UUID transactionId) {
