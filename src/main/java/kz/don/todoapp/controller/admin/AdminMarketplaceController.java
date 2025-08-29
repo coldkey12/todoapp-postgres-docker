@@ -1,8 +1,10 @@
 package kz.don.todoapp.controller.admin;
 
+import kz.don.todoapp.dto.TransactionDTO;
 import kz.don.todoapp.dto.request.ProductRequest;
-import kz.don.todoapp.entity.UserTransaction;
+import kz.don.todoapp.dto.response.CartResponse;
 import kz.don.todoapp.mappers.ProductMapper;
+import kz.don.todoapp.service.CartService;
 import kz.don.todoapp.service.ProductService;
 import kz.don.todoapp.service.UserTransactionsService;
 import lombok.RequiredArgsConstructor;
@@ -12,6 +14,7 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.util.Locale;
 import java.util.UUID;
 
 @RestController
@@ -24,6 +27,7 @@ public class AdminMarketplaceController {
     private final ProductMapper productMapper;
     private final ProductService productService;
     private final UserTransactionsService userTransactionsService;
+    private final CartService cartService;
 
     @PostMapping("/add-product")
     public ResponseEntity<String> addProduct(@RequestBody ProductRequest productRequest) {
@@ -57,8 +61,25 @@ public class AdminMarketplaceController {
     }
 
     @GetMapping("/orders")
-    public List<UserTransaction> getAllOrders() {
+    public List<TransactionDTO> getAllOrders() {
         log.info("Fetching all orders");
         return userTransactionsService.getAllOrders();
+    }
+
+    @GetMapping("/carts")
+    public ResponseEntity<List<CartResponse>> getAllCarts() {
+        return ResponseEntity.ok(cartService.getAllCarts());
+    }
+
+    @PostMapping("/approve/{cartId}/{isApproved}")
+    public ResponseEntity<String> approveACart(@PathVariable String cartId, @PathVariable String isApproved) {
+        cartService.approvalStatusCart(cartId, isApproved.toLowerCase(Locale.ROOT).equals("true"));
+        return ResponseEntity.ok("Cart status changed");
+    }
+
+    @DeleteMapping("/carts/{cartId}")
+    public ResponseEntity<String> deleteACart(@PathVariable String cartId) {
+        cartService.deleteACart(cartId);
+        return ResponseEntity.ok("Cart deleted successfully");
     }
 }

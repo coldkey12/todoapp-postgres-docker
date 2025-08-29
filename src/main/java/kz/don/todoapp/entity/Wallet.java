@@ -2,11 +2,12 @@ package kz.don.todoapp.entity;
 
 import jakarta.persistence.*;
 import kz.don.todoapp.enums.CurrencyEnum;
-import lombok.AllArgsConstructor;
-import lombok.Builder;
-import lombok.Data;
-import lombok.NoArgsConstructor;
+import lombok.*;
+import org.hibernate.annotations.CreationTimestamp;
+import org.hibernate.annotations.UpdateTimestamp;
 import org.hibernate.envers.Audited;
+
+import java.time.LocalDateTime;
 
 @Entity
 @Table(name = "wallets")
@@ -15,6 +16,7 @@ import org.hibernate.envers.Audited;
 @AllArgsConstructor
 @Builder
 @Audited
+@EqualsAndHashCode(exclude = "user")
 public class Wallet {
 
     @Id
@@ -28,4 +30,12 @@ public class Wallet {
 
     @OneToOne(fetch = FetchType.EAGER)
     private User user;
+
+    @CreationTimestamp
+    @Column(nullable = false, updatable = false)
+    private LocalDateTime createdAt;
+
+    @UpdateTimestamp
+    @Column(nullable = false)
+    private LocalDateTime updatedAt;
 }

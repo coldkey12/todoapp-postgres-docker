@@ -3,10 +3,7 @@ package kz.don.todoapp.entity;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 import kz.don.todoapp.enums.RoleEnum;
-import lombok.AllArgsConstructor;
-import lombok.Builder;
-import lombok.Data;
-import lombok.NoArgsConstructor;
+import lombok.*;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.annotations.UpdateTimestamp;
@@ -29,6 +26,7 @@ import java.util.UUID;
 @AllArgsConstructor
 @Builder
 @Audited
+@EqualsAndHashCode(exclude = {"wallet", "tasks"})
 public class User implements UserDetails {
 
     @Id
