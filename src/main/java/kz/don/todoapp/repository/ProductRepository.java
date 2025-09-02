@@ -10,5 +10,6 @@ import java.util.UUID;
 @Repository
 @RedisHash
 public interface ProductRepository extends JpaRepository<Product, UUID> {
+
     Product findByTitle(String title);
 }

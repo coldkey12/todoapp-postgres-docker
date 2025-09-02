@@ -9,6 +9,7 @@ import java.util.List;
 
 @Mapper(componentModel = "spring")
 public interface TaskMapper {
+
     List<TaskResponse> toListTaskResponse(List<Task> tasks);
 
     Task toTask(TaskRequest taskRequest);

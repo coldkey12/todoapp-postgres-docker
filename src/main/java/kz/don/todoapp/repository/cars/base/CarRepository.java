@@ -10,6 +10,7 @@ import java.util.UUID;
 @Repository
 @RedisHash
 public interface CarRepository<E extends Car> extends CrudRepository<E, UUID> {
+
     @Override
     <S extends E> S save(S entity);
 }

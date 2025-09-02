@@ -8,7 +8,6 @@ import kz.don.todoapp.enums.UserTranscationStatus;
 import kz.don.todoapp.repository.CartRepository;
 import kz.don.todoapp.repository.ProductRepository;
 import kz.don.todoapp.repository.UserTransactionRepository;
-import kz.don.todoapp.repository.WalletRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
